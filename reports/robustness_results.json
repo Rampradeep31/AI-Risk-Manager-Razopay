@@ -1,0 +1,140 @@
+{
+  "leakage_audit": {
+    "max_abs_label_correlation": 0.1706137785371266,
+    "suspicious_features": []
+  },
+  "stress_test": [
+    {
+      "name": "adversarial_but_legitimate_high_value_new_account",
+      "description": "New account + high order value, BUT clean category (electronics), no discount, on-time delivery, card payment - should NOT be flagged purely because of the new-account + high-value combination alone.",
+      "predicted_proba": 0.3273827445849968,
+      "flagged": false,
+      "expected_flagged": false,
+      "passed": true,
+      "top_contributors": [
+        {
+          "feature": "item_category_te",
+          "friendly_name": "item category's historical return rate",
+          "shap_value": -0.4496205794842337,
+          "direction": "decreases_risk"
+        },
+        {
+          "feature": "is_first_order",
+          "friendly_name": "first-ever order",
+          "shap_value": 0.42219075359297703,
+          "direction": "increases_risk"
+        },
+        {
+          "feature": "discount_pct",
+          "friendly_name": "discount applied",
+          "shap_value": -0.24355458880563494,
+          "direction": "decreases_risk"
+        }
+      ]
+    },
+    {
+      "name": "genuinely_high_risk",
+      "description": "New account + high value + fit-sensitive category + heavy discount + late COD delivery - every known risk factor stacked.",
+      "predicted_proba": 0.9471081895610995,
+      "flagged": true,
+      "expected_flagged": true,
+      "passed": true,
+      "top_contributors": [
+        {
+          "feature": "item_category_te",
+          "friendly_name": "item category's historical return rate",
+          "shap_value": 0.9620190988733326,
+          "direction": "increases_risk"
+        },
+        {
+          "feature": "fit_category_x_high_discount",
+          "friendly_name": "large discount on a fit-sensitive item",
+          "shap_value": 0.7344639936685123,
+          "direction": "increases_risk"
+        },
+        {
+          "feature": "payment_method_te",
+          "friendly_name": "payment method's historical return rate",
+          "shap_value": 0.5854595846524763,
+          "direction": "increases_risk"
+        }
+      ]
+    },
+    {
+      "name": "established_customer_high_value",
+      "description": "Established, low-return-history customer placing a high-value order - tests that high value alone (without new-account) isn't enough to flag.",
+      "predicted_proba": 0.03425753938629006,
+      "flagged": false,
+      "expected_flagged": false,
+      "passed": true,
+      "top_contributors": [
+        {
+          "feature": "prior_orders_count",
+          "friendly_name": "number of prior orders",
+          "shap_value": -2.0301312325318843,
+          "direction": "decreases_risk"
+        },
+        {
+          "feature": "item_category_te",
+          "friendly_name": "item category's historical return rate",
+          "shap_value": -0.4496205794842337,
+          "direction": "decreases_risk"
+        },
+        {
+          "feature": "discount_pct",
+          "friendly_name": "discount applied",
+          "shap_value": -0.19206422098980971,
+          "direction": "decreases_risk"
+        }
+      ]
+    },
+    {
+      "name": "new_account_low_value_clean",
+      "description": "New account but low order value, non-fit-sensitive category, fast delivery - tests that new-account status alone isn't enough to flag.",
+      "predicted_proba": 0.27553971271713695,
+      "flagged": false,
+      "expected_flagged": false,
+      "passed": true,
+      "top_contributors": [
+        {
+          "feature": "item_category_te",
+          "friendly_name": "item category's historical return rate",
+          "shap_value": -0.9155759176640861,
+          "direction": "decreases_risk"
+        },
+        {
+          "feature": "is_first_order",
+          "friendly_name": "first-ever order",
+          "shap_value": 0.42219075359297703,
+          "direction": "increases_risk"
+        },
+        {
+          "feature": "discount_pct",
+          "friendly_name": "discount applied",
+          "shap_value": -0.24355458880563494,
+          "direction": "decreases_risk"
+        }
+      ]
+    }
+  ],
+  "stability_check": [
+    {
+      "seed": 2024,
+      "roc_auc": 0.6899008909059159,
+      "pr_auc": 0.4370421328747446,
+      "f1": 0.4106508875739645
+    },
+    {
+      "seed": 7,
+      "roc_auc": 0.7080964668904367,
+      "pr_auc": 0.4394189009226315,
+      "f1": 0.42035130224106604
+    },
+    {
+      "seed": 123,
+      "roc_auc": 0.6959490326324497,
+      "pr_auc": 0.4510610992042711,
+      "f1": 0.4065998821449617
+    }
+  ]
+}

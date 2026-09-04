@@ -107,10 +107,15 @@ BASE_NUMERIC_FEATURES = [
 ALL_MODEL_INPUT_COLS = BASE_NUMERIC_FEATURES + TARGET_ENCODE_COLS
 
 
-def load_and_split():
+def load_and_split(seed: int = SPLIT_SEED):
     """Single source of truth for the final train/test holdout. Returns raw
     (pre-target-encoding) feature frames + labels; target encoding is fit
     inside train.py's CV pipeline, per fold, to avoid leakage.
+
+    `seed` defaults to the canonical SPLIT_SEED used throughout the project;
+    it is only overridden by robustness.py's seed-stability check, which
+    re-splits with different seeds to confirm results aren't an artifact of
+    one particular holdout.
     """
     df = pd.read_csv(DATA_PATH)
     df = engineer_features(df)
@@ -119,7 +124,7 @@ def load_and_split():
     y = df[LABEL]
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=TEST_SIZE, stratify=y, random_state=SPLIT_SEED
+        X, y, test_size=TEST_SIZE, stratify=y, random_state=seed
     )
     return X_train, X_test, y_train, y_test
 

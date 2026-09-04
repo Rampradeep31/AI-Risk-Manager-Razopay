@@ -1,0 +1,134 @@
+"""
+FastAPI scoring service for the return-risk model.
+
+POST /score takes order-time features and returns:
+  - a risk score (calibration caveat: rank-ordered, not a literal probability
+    - see MODEL_CARD.md)
+  - the threshold decision (flagged for review or not)
+  - a SHAP-grounded explanation: the top contributing features (with their
+    actual log-odds contribution) and a natural-language sentence built from
+    those numbers via a deterministic template.
+
+The natural-language sentence is intentionally template-based, not an LLM
+call: an LLM could optionally be swapped in later purely to rephrase this
+same template more fluently, but the underlying claim always comes from
+SHAP's numbers, never from a model's guess. Run locally:
+
+    uvicorn app.scoring_api:app --reload --port 8000
+"""
+import sys
+from pathlib import Path
+from typing import Literal, Optional
+
+import joblib
+import pandas as pd
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from explainer import RiskExplainer  # noqa: E402
+from feature_engineering import ALL_MODEL_INPUT_COLS, engineer_features, load_and_split  # noqa: E402
+
+MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "final_model.joblib"
+THRESHOLD = 0.35  # chosen in evaluate.py via cost-based optimization on train OOF predictions
+
+app = FastAPI(
+    title="Return-Risk Scorer",
+    description="Advisory return-risk scoring for orders at checkout time. "
+                 "See MODEL_CARD.md for intended use, limitations, and calibration caveats.",
+    version="1.0.0",
+)
+
+_pipeline = None
+_explainer = None
+
+
+def _get_pipeline():
+    global _pipeline
+    if _pipeline is None:
+        _pipeline = joblib.load(MODEL_PATH)
+    return _pipeline
+
+
+def _get_explainer():
+    global _explainer
+    if _explainer is None:
+        X_train, _, _, _ = load_and_split()
+        _explainer = RiskExplainer(_get_pipeline(), background_X=X_train)
+    return _explainer
+
+
+class OrderFeatures(BaseModel):
+    account_age_days: int = Field(..., ge=0, description="Days since account creation (0 for first order)")
+    prior_orders_count: int = Field(..., ge=0)
+    prior_return_rate: float = Field(..., ge=0.0, le=1.0)
+    order_value: float = Field(..., gt=0)
+    item_category: Literal["fashion", "footwear", "electronics", "home", "beauty", "grocery", "toys", "sports"]
+    item_count: int = Field(..., ge=1)
+    discount_pct: float = Field(..., ge=0, le=100)
+    payment_method: Literal["card", "upi", "netbanking", "wallet", "cod"]
+    delivery_promise_days: int = Field(..., ge=1)
+    actual_delivery_days: Optional[int] = Field(None, ge=1, description="Null if order still in transit")
+    device_type: Literal["mobile", "desktop", "tablet"]
+    time_of_day: Literal["morning", "afternoon", "evening", "late_night"]
+    is_first_order: int = Field(..., ge=0, le=1)
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "account_age_days": 0, "prior_orders_count": 0, "prior_return_rate": 0.0,
+                "order_value": 4500.0, "item_category": "footwear", "item_count": 1,
+                "discount_pct": 55.0, "payment_method": "cod", "delivery_promise_days": 3,
+                "actual_delivery_days": 7, "device_type": "mobile", "time_of_day": "evening",
+                "is_first_order": 1,
+            }
+        }
+    }
+
+
+class Contributor(BaseModel):
+    feature: str
+    friendly_name: str
+    shap_value: float
+    direction: Literal["increases_risk", "decreases_risk"]
+
+
+class ScoreResponse(BaseModel):
+    risk_score: float
+    flagged_for_review: bool
+    threshold: float
+    top_contributors: list[Contributor]
+    explanation: str
+    calibration_note: str = (
+        "risk_score is rank-ordered (higher = riskier) but not a literal "
+        "probability - see MODEL_CARD.md calibration section."
+    )
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.post("/score", response_model=ScoreResponse)
+def score(order: OrderFeatures):
+    raw_df = pd.DataFrame([order.model_dump()])
+    engineered = engineer_features(raw_df)[ALL_MODEL_INPUT_COLS]
+
+    pipeline = _get_pipeline()
+    proba = float(pipeline.predict_proba(engineered)[:, 1][0])
+    flagged = proba >= THRESHOLD
+
+    explainer = _get_explainer()
+    exp = explainer.explain(engineered)
+    contributors = RiskExplainer.top_contributors(exp[0], top_n=3)
+    sentence = RiskExplainer.format_sentence(contributors, proba, flagged)
+
+    return ScoreResponse(
+        risk_score=round(proba, 4),
+        flagged_for_review=flagged,
+        threshold=THRESHOLD,
+        top_contributors=contributors,
+        explanation=sentence,
+    )
