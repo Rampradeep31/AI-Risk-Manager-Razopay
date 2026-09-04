@@ -1,0 +1,80 @@
+[
+  {
+    "example_kind": "high_risk",
+    "predicted_proba": 0.9765444403955463,
+    "flagged": true,
+    "top_contributors": [
+      {
+        "feature": "new_account_x_high_value",
+        "friendly_name": "new account placing a high-value order",
+        "shap_value": 1.1356641202779518,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "fit_category_x_high_discount",
+        "friendly_name": "large discount on a fit-sensitive item",
+        "shap_value": 0.7344639936685123,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "item_category_te",
+        "friendly_name": "item category's historical return rate",
+        "shap_value": 0.6149685056213895,
+        "direction": "increases_risk"
+      }
+    ],
+    "explanation_sentence": "Order flagged as high return-risk (predicted return probability 98%). Top drivers: new account placing a high-value order (+1.14); large discount on a fit-sensitive item (+0.73); item category's historical return rate (+0.61)."
+  },
+  {
+    "example_kind": "high_risk",
+    "predicted_proba": 0.9579335765810545,
+    "flagged": true,
+    "top_contributors": [
+      {
+        "feature": "new_account_x_high_value",
+        "friendly_name": "new account placing a high-value order",
+        "shap_value": 1.1356641202779518,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "item_category_te",
+        "friendly_name": "item category's historical return rate",
+        "shap_value": 0.9620190988733326,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "fit_category_x_high_discount",
+        "friendly_name": "large discount on a fit-sensitive item",
+        "shap_value": 0.7344639936685123,
+        "direction": "increases_risk"
+      }
+    ],
+    "explanation_sentence": "Order flagged as high return-risk (predicted return probability 96%). Top drivers: new account placing a high-value order (+1.14); item category's historical return rate (+0.96); large discount on a fit-sensitive item (+0.73)."
+  },
+  {
+    "example_kind": "borderline",
+    "predicted_proba": 0.3499601977888248,
+    "flagged": false,
+    "top_contributors": [
+      {
+        "feature": "actual_delivery_days",
+        "friendly_name": "actual delivery time",
+        "shap_value": 0.18678122843963904,
+        "direction": "increases_risk"
+      },
+      {
+        "feature": "device_type_te",
+        "friendly_name": "device type's historical return rate",
+        "shap_value": -0.17251823991127124,
+        "direction": "decreases_risk"
+      },
+      {
+        "feature": "discount_pct",
+        "friendly_name": "discount applied",
+        "shap_value": -0.14932721570267474,
+        "direction": "decreases_risk"
+      }
+    ],
+    "explanation_sentence": "Order not flagged (low return-risk) (predicted return probability 35%). Top drivers: actual delivery time (+0.19); device type's historical return rate (-0.17); discount applied (-0.15)."
+  }
+]
