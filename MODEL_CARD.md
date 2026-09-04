@@ -46,16 +46,20 @@ is **not** an automated order-blocking or order-cancellation system. See
 
 ## Final metrics (held-out test set, touched once)
 
-From [reports/final/metrics.json](reports/final/metrics.json):
+From [reports/final_calibrated/metrics.json](reports/final_calibrated/metrics.json)
+- these are the served (calibrated) model's numbers, at its re-selected
+threshold of 0.13. (The pre-calibration numbers at threshold 0.35 are in
+[reports/final/metrics.json](reports/final/metrics.json) and are essentially
+identical, since isotonic recalibration mostly preserves rank order.)
 
 | Metric | Value |
 |---|---|
 | Precision | 0.27 |
-| Recall | 0.85 |
+| Recall | 0.84 |
 | F1 | 0.41 |
-| ROC-AUC | 0.69 |
-| PR-AUC | 0.437 (vs. 0.226 no-skill baseline) |
-| Confusion matrix | TN=457, FP=936, FN=60, TP=347 |
+| ROC-AUC | 0.689 |
+| PR-AUC | 0.435 (vs. 0.226 no-skill baseline) |
+| Confusion matrix | TN=474, FP=919, FN=66, TP=341 |
 
 Model selection process (CV comparison of Logistic Regression / Random
 Forest / LightGBM, imbalance-handling comparison, Optuna tuning) is in
@@ -68,20 +72,36 @@ data-generating process is log-odds-linear with its interaction effects
 already materialized as explicit columns, which removes the structural
 advantage tree ensembles would otherwise have.
 
-### Calibration note (read before treating the score as a literal probability)
+### Calibration (fixed via isotonic recalibration)
 
-The model is well **rank-ordered** (monotonic - higher score reliably means
-higher risk) but **not well-calibrated in absolute terms**: predicted
-probabilities run systematically higher than observed frequencies (e.g. a
-~0.8 predicted score corresponds to only ~55% observed return rate in the
-held-out test set - see
-[reports/final/calibration_curve.png](reports/final/calibration_curve.png)).
-This is an expected side effect of `class_weight='balanced'`, which reweights
-the training loss and shifts predicted probabilities away from the true base
-rate. **Use the score for ranking and thresholding, not as a literal
-"X% chance of return."** A production deployment wanting calibrated absolute
-probabilities should apply isotonic or Platt recalibration on top of this
-model's raw output.
+The raw model was well **rank-ordered** (monotonic - higher score reliably
+means higher risk) but **not well-calibrated in absolute terms**: predicted
+probabilities ran systematically higher than observed frequencies (e.g. a
+~0.8 raw score corresponded to only ~55% observed return rate - see
+[reports/final/calibration_curve.png](reports/final/calibration_curve.png)),
+an expected side effect of `class_weight='balanced'` reweighting the
+training loss.
+
+**This is fixed in production**: [src/calibrate.py](src/calibrate.py) wraps
+the final pipeline in `sklearn.calibration.CalibratedClassifierCV`
+(`method='isotonic'`, `cv=5`, fit on training data only) and re-selects the
+operating threshold on the calibrated out-of-fold predictions. Result -
+mean |calibration gap| dropped from **0.240 to 0.027 (an 88.7% reduction)**
+on the held-out test set (see
+[reports/final_calibrated/calibration_curve_comparison.png](reports/final_calibrated/calibration_curve_comparison.png)),
+with ranking metrics essentially unchanged (ROC-AUC 0.689, PR-AUC 0.435 vs.
+0.690/0.437 pre-calibration). The **served model is now `models/final_model_calibrated.joblib`
+at threshold 0.13** (the calibrated-probability equivalent of the old 0.35
+raw-score threshold). `models/final_model.joblib` (uncalibrated) is kept
+only as the SHAP attribution source (see below) - it is no longer the
+scoring model.
+
+SHAP explanations still come from the uncalibrated pipeline: isotonic
+recalibration only remaps the aggregate score onto a true-probability scale,
+it does not change the logistic regression's coefficients or which features
+drove a decision, so explaining through the simpler single model is
+equivalent but far cheaper than explaining through the 5-model calibrated
+ensemble.
 
 ## Chosen threshold and cost reasoning
 
@@ -97,8 +117,40 @@ below the naive 0.5 default. The threshold was selected by minimizing total
 expected cost over 5-fold out-of-fold predictions on the **training set
 only** (never the test set, to avoid threshold-leakage) - see
 [reports/final/cost_curve.png](reports/final/cost_curve.png). Chosen
-threshold: **0.35**, which reduced expected cost by 13.4% versus the naive
-0.5 threshold on that same training-OOF data.
+threshold (pre-calibration): **0.35**, which reduced expected cost by 13.4%
+versus the naive 0.5 threshold on that same training-OOF data. After
+isotonic recalibration (see below), the equivalent cost-optimal threshold on
+calibrated probabilities is **0.13**.
+
+### Sensitivity to the cost-ratio assumption
+
+The Rs50/Rs350 costs above are a judgment call, not a measurement - so
+[src/sensitivity_analysis.py](src/sensitivity_analysis.py) sweeps the
+assumed FN:FP ratio from 0.25x to 3x the baseline (7:1) and re-derives the
+cost-optimal threshold and resulting test-set precision/recall/F1 at each
+point (table:
+[reports/final_calibrated/threshold_sensitivity.csv](reports/final_calibrated/threshold_sensitivity.csv),
+plot:
+[reports/final_calibrated/threshold_sensitivity.png](reports/final_calibrated/threshold_sensitivity.png)).
+Note this reuses the single held-out test set to *report* what each
+ratio's threshold would produce, not to *choose* the ratio or threshold -
+each threshold is still selected from training-only OOF predictions.
+
+| FN:FP ratio | Threshold | Precision | Recall | F1 |
+|---|---|---|---|---|
+| 1.8 | 0.39 | 0.54 | 0.26 | 0.35 |
+| 3.5 | 0.22 | 0.34 | 0.62 | 0.44 |
+| 5.2 | 0.16 | 0.29 | 0.78 | 0.42 |
+| **7.0 (baseline)** | **0.13** | **0.27** | **0.84** | **0.41** |
+| 10.5+ | 0.02 | 0.23 | 1.00 | 0.37 |
+
+The threshold degrades gracefully in both directions - being off by 2x on
+the ratio moves recall from 0.84 to somewhere between 0.62 and 1.00, never
+collapsing precision or recall to zero. F1 actually peaks slightly below the
+baseline ratio (at ~3.5x), which is expected: F1 weights precision and
+recall equally, while the stated cost model deliberately does not (it
+weights recall more, matching the real 7:1 cost asymmetry) - F1 is reported
+for reference, not as the optimization target.
 
 ## Known failure modes
 

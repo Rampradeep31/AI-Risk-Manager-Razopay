@@ -13,3 +13,5 @@ fastapi
 uvicorn
 pydantic
 joblib
+pytest
+httpx

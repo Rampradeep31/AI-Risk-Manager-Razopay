@@ -29,6 +29,8 @@ ENV/
 # IDE & Editors
 .vscode/
 .idea/
+.claude/
+.pytest_cache/
 *.swp
 *.swo
 

@@ -26,13 +26,23 @@ src/train.py                 -> 5-fold CV: 3 model families -> imbalance handlin
 src/evaluate.py              -> cost-based threshold (train OOF) + final held-out test metrics
         |                        reports/final/{cost_curve,pr_curve,confusion_matrix,calibration_curve}.png, metrics.json
         |
-src/explainer.py + explain.py -> SHAP global importance + per-case explanations
+src/calibrate.py             -> isotonic recalibration + re-selected threshold on calibrated OOF preds
+        |                        reports/final_calibrated/*.png, metrics.json
+        |                        models/final_model_calibrated.joblib (the model the API actually serves)
+        |
+src/sensitivity_analysis.py  -> how the threshold/metrics move if the FP:FN cost ratio is wrong (0.25x-3x sweep)
+        |                        reports/final_calibrated/threshold_sensitivity.{csv,png}
+        |
+src/explainer.py + explain.py -> SHAP global importance + per-case explanations (on the uncalibrated pipeline)
         |                        reports/shap/*.png, example_explanations.json
         |
 src/robustness.py            -> leakage audit + stress tests + seed-stability check
         |                        reports/robustness_results.json, ROBUSTNESS.md
         |
-app/scoring_api.py           -> FastAPI: order features in -> score + threshold decision + SHAP explanation out
+app/scoring_api.py           -> FastAPI: order features in -> calibrated score + threshold decision + SHAP explanation out
+        |
+tests/                        -> pytest: leakage guard, feature-engineering unit tests, pipeline
+                                  determinism, API contract tests (20 tests, run via `pytest`)
 ```
 
 ## Setup
@@ -49,8 +59,17 @@ python src/eda.py
 python src/feature_engineering.py
 python src/train.py
 python src/evaluate.py
+python src/calibrate.py
+python src/sensitivity_analysis.py
 python src/explain.py
 python src/robustness.py
+```
+
+Run the test suite (leakage guard, feature-engineering unit tests, pipeline
+determinism, API contract tests):
+
+```bash
+pytest
 ```
 
 Then serve the scoring API:
@@ -86,21 +105,35 @@ curl -X POST http://127.0.0.1:8000/score -H "Content-Type: application/json" -d 
 - **Imbalance handling:** `class_weight='balanced'` kept over SMOTE/SMOTE-Tomek
   - the resampling variants didn't clear a 0.005 PR-AUC margin, so the
     simpler, synthetic-data-free option won.
-- **Held-out test metrics @ threshold 0.35:** Precision 0.27, Recall 0.85,
-  F1 0.41, ROC-AUC 0.69, PR-AUC 0.437 (vs. 0.226 no-skill baseline).
+- **Held-out test metrics (served, calibrated model) @ threshold 0.13:**
+  Precision 0.27, Recall 0.84, F1 0.41, ROC-AUC 0.69, PR-AUC 0.435
+  (vs. 0.226 no-skill baseline).
 - **Threshold chosen via expected-cost minimization** (FP=Rs50, FN=Rs350) on
   training-set out-of-fold predictions only, then applied once to the
-  untouched test set - a 13.4% cost reduction vs. the naive 0.5 threshold.
-- **Calibration finding:** the score is reliably rank-ordered but not
-  literally calibrated (class-weighting inflates predicted probabilities) -
-  documented explicitly rather than glossed over. See
-  [MODEL_CARD.md](MODEL_CARD.md#calibration-note-read-before-treating-the-score-as-a-literal-probability).
+  untouched test set - a 13.4% cost reduction vs. the naive 0.5 threshold
+  (pre-calibration; see [src/evaluate.py](src/evaluate.py)).
+- **Calibration: found miscalibrated, then fixed.** The raw model was
+  reliably rank-ordered but not literally calibrated (class-weighting
+  inflates predicted probabilities - a 0.8 raw score meant only ~55% observed
+  return rate). [src/calibrate.py](src/calibrate.py) applies isotonic
+  recalibration (`CalibratedClassifierCV`, 5-fold, training data only),
+  cutting the mean calibration gap from 0.240 to 0.027 (an **88.7%
+  reduction**) with ranking metrics essentially unchanged. This calibrated
+  model is what `app/scoring_api.py` actually serves. See
+  [MODEL_CARD.md](MODEL_CARD.md#calibration-fixed-via-isotonic-recalibration).
+- **Cost-ratio sensitivity:** the Rs50/Rs350 cost assumption is a judgment
+  call, so [src/sensitivity_analysis.py](src/sensitivity_analysis.py) sweeps
+  the FN:FP ratio 0.25x-3x and shows the threshold degrades gracefully in
+  both directions rather than collapsing - see
+  [MODEL_CARD.md](MODEL_CARD.md#sensitivity-to-the-cost-ratio-assumption).
 - **Robustness:** no feature exceeds 0.17 correlation with the label (no
   leakage), 4/4 handcrafted stress tests passed (new-account-alone and
   high-value-alone both correctly fail to trigger a flag; only their
   combination does), and metrics are stable across 3 independent train/test
   splits (ROC-AUC 0.698 +/- 0.008). Full detail in
   [ROBUSTNESS.md](ROBUSTNESS.md).
+- **Tested:** 20 passing pytest cases covering a leakage guard, feature-
+  engineering unit tests, pipeline-fit determinism, and the API contract.
 
 ## Repo map
 
@@ -110,7 +143,9 @@ curl -X POST http://127.0.0.1:8000/score -H "Content-Type: application/json" -d 
 | [FEATURE_DICTIONARY.md](FEATURE_DICTIONARY.md) | Every feature, what it means, why it's included |
 | [MODEL_CARD.md](MODEL_CARD.md) | Intended use, final metrics, threshold reasoning, known failure modes |
 | [ROBUSTNESS.md](ROBUSTNESS.md) | Leakage audit, stress tests, seed-stability results |
-| `src/` | Data generation, EDA, feature engineering, training, evaluation, explainability, robustness |
+| `src/` | Data generation, EDA, feature engineering, training, evaluation, calibration, sensitivity analysis, explainability, robustness |
 | `app/scoring_api.py` | FastAPI scoring service |
+| `tests/` | Pytest suite (leakage guard, unit tests, determinism, API contract) |
 | `reports/` | All generated plots and metrics artifacts |
-| `models/final_model.joblib` | The fitted, final pipeline |
+| `models/final_model_calibrated.joblib` | The served model (calibrated) |
+| `models/final_model.joblib` | Uncalibrated pipeline, kept only as the SHAP attribution source |

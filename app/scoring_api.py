@@ -30,8 +30,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from explainer import RiskExplainer  # noqa: E402
 from feature_engineering import ALL_MODEL_INPUT_COLS, engineer_features, load_and_split  # noqa: E402
 
-MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "final_model.joblib"
-THRESHOLD = 0.35  # chosen in evaluate.py via cost-based optimization on train OOF predictions
+MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "final_model_calibrated.joblib"
+EXPLAIN_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "final_model.joblib"
+THRESHOLD = 0.13  # chosen in calibrate.py via cost-based optimization on calibrated train OOF predictions
 
 app = FastAPI(
     title="Return-Risk Scorer",
@@ -40,7 +41,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-_pipeline = None
+_pipeline = None       # calibrated model: used for the risk_score users see
+_explain_pipeline = None  # uncalibrated pipeline: used only for SHAP attribution
 _explainer = None
 
 
@@ -52,10 +54,16 @@ def _get_pipeline():
 
 
 def _get_explainer():
-    global _explainer
+    # Isotonic calibration only remaps the final score onto a true-probability
+    # scale - it doesn't change the logistic regression's coefficients or
+    # which features drove the decision. So SHAP explains the simpler
+    # uncalibrated pipeline directly rather than the 5-model calibrated
+    # ensemble; the "why" is identical either way, but far cheaper to compute.
+    global _explainer, _explain_pipeline
     if _explainer is None:
+        _explain_pipeline = joblib.load(EXPLAIN_MODEL_PATH)
         X_train, _, _, _ = load_and_split()
-        _explainer = RiskExplainer(_get_pipeline(), background_X=X_train)
+        _explainer = RiskExplainer(_explain_pipeline, background_X=X_train)
     return _explainer
 
 
@@ -101,8 +109,9 @@ class ScoreResponse(BaseModel):
     top_contributors: list[Contributor]
     explanation: str
     calibration_note: str = (
-        "risk_score is rank-ordered (higher = riskier) but not a literal "
-        "probability - see MODEL_CARD.md calibration section."
+        "risk_score is isotonic-calibrated on training data (see calibrate.py) - "
+        "e.g. a 0.30 score corresponds to roughly a 30% observed return rate in "
+        "held-out testing. Still monitor for drift in production; see MODEL_CARD.md."
     )
 
 
