@@ -1,0 +1,15 @@
+{
+  "model_family": "logreg",
+  "imbalance_strategy": "class_weight",
+  "best_params": {
+    "C": 0.3024011809744486
+  },
+  "cv_roc_auc_mean": 0.7011745979049205,
+  "cv_roc_auc_std": 0.023162666250940867,
+  "cv_pr_auc_mean": 0.4419726324196825,
+  "cv_pr_auc_std": 0.03417090852967078,
+  "n_optuna_trials": 30,
+  "train_rows": 7200,
+  "test_rows": 1800,
+  "train_positive_rate": 0.22625
+}
