@@ -2,12 +2,12 @@
   "model_family": "logreg",
   "imbalance_strategy": "class_weight",
   "best_params": {
-    "C": 0.3024011809744486
+    "C": 0.12440915264582975
   },
-  "cv_roc_auc_mean": 0.7011745979049205,
-  "cv_roc_auc_std": 0.023162666250940867,
-  "cv_pr_auc_mean": 0.4419726324196825,
-  "cv_pr_auc_std": 0.03417090852967078,
+  "cv_roc_auc_mean": 0.701290318879934,
+  "cv_roc_auc_std": 0.023075234459422802,
+  "cv_pr_auc_mean": 0.4419421635333869,
+  "cv_pr_auc_std": 0.0342994755762678,
   "n_optuna_trials": 30,
   "train_rows": 7200,
   "test_rows": 1800,

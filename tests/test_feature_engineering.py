@@ -18,6 +18,23 @@ def raw_df():
     return pd.read_csv("data/orders.csv")
 
 
+def test_high_order_value_uses_fixed_threshold_not_per_call_quantile(raw_df):
+    """Regression test: engineer_features() must use a threshold learned once
+    from training data, not `df["order_value"].quantile(0.75)` computed on
+    whatever frame is passed in. The latter is silently broken for single-row
+    scoring (the API's actual, primary use case) - the 75th percentile of one
+    value is that value, so high_order_value (and the new_account_x_high_value
+    interaction) would always be 0, regardless of the order's real value."""
+    high_value_order = raw_df.loc[raw_df["order_value"].idxmax()].to_dict()
+    single_row = pd.DataFrame([high_value_order])
+    out = engineer_features(single_row)
+    assert out["high_order_value"].iloc[0] == 1, (
+        "the single highest-value order in the dataset must be flagged high_order_value=1; "
+        "if this fails, engineer_features() has regressed to computing the threshold "
+        "per-call instead of loading the persisted training-derived constant"
+    )
+
+
 def test_engineer_features_adds_expected_columns(raw_df):
     out = engineer_features(raw_df)
     expected_new_cols = {

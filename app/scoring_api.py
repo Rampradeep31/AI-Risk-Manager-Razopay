@@ -32,7 +32,7 @@ from feature_engineering import ALL_MODEL_INPUT_COLS, engineer_features, load_an
 
 MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "final_model_calibrated.joblib"
 EXPLAIN_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "final_model.joblib"
-THRESHOLD = 0.13  # chosen in calibrate.py via cost-based optimization on calibrated train OOF predictions
+THRESHOLD = 0.14  # chosen in calibrate.py via cost-based optimization on calibrated train OOF predictions
 
 app = FastAPI(
     title="Return-Risk Scorer",

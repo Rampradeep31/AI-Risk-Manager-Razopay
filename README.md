@@ -1,13 +1,34 @@
 # Return-Risk Scorer
 
-An order-time model that predicts the probability an order will be returned,
-built with the rigor of a real risk-modeling exercise: honest (imbalanced,
-noisy) synthetic data, a fair cross-validated comparison across 3 model
-families, an explicit false-positive/false-negative cost model driving
-threshold selection, SHAP-grounded per-decision explanations, and documented
-robustness checks. See [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md) for the
-decision this score informs and who acts on it, and
-[MODEL_CARD.md](MODEL_CARD.md) for the full model card.
+**AI Risk Manager — Return-Risk Scorer.** An order-time model that predicts
+the probability an order will be returned, built with the rigor of a real
+risk-modeling exercise rather than a single train/test split and a 0.5
+threshold: honest (imbalanced, noisy) synthetic data, a fair cross-validated
+comparison across 3 model families, an explicit false-positive/false-negative
+cost model driving threshold selection, isotonic recalibration, SHAP-grounded
+per-decision explanations, and documented robustness checks — including a
+real production bug we found and fixed while building the demo below (see
+Key results).
+
+**🔗 [Live demo — Risk Manifest](https://claude.ai/code/artifact/f9cf81b7-26ab-4e0e-ab95-566cff40b25a):**
+score any order and see the actual trained model's verdict, calibrated risk
+score, and SHAP drivers — computed live in your browser from the real
+exported model parameters, no server involved. *(Private by default — click
+Share on the page to open it up for judges/reviewers.)*
+
+See [PROBLEM_STATEMENT.md](PROBLEM_STATEMENT.md) for the decision this score
+informs and who acts on it, and [MODEL_CARD.md](MODEL_CARD.md) for the full
+model card.
+
+## Why this stands out
+
+| | |
+|---|---|
+| **Not just "good enough"** | Cross-validated model comparison (not a single split), a real cost-based threshold (not 0.5), SHAP-grounded explanations, and an explicit leakage/robustness audit — the metrics survive being questioned. |
+| **Found miscalibrated, then fixed it** | Raw probabilities were rank-ordered but not literally meaningful; isotonic recalibration cut the calibration gap by **89.7%** — verified with a before/after plot, not just claimed. |
+| **A real bug, caught and fixed** | Preparing the live demo surfaced a production bug that silently disabled a key interaction feature on every API call. Root-caused, fixed, the whole pipeline re-run, a regression test added. Documented honestly, not swept under the rug. |
+| **Cost assumptions stress-tested** | The ₹50/₹350 cost model is a judgment call — a sensitivity sweep shows the threshold degrades gracefully even if that assumption is off by 2-3x. |
+| **Live, verifiable demo** | The demo isn't a mockup — it's the literal trained model (coefficients, target-encoding maps, isotonic calibration curves) reproduced parameter-for-parameter in JavaScript, checked bit-exact against the Python model before publishing. |
 
 ## Architecture
 
@@ -41,9 +62,19 @@ src/robustness.py            -> leakage audit + stress tests + seed-stability ch
         |
 app/scoring_api.py           -> FastAPI: order features in -> calibrated score + threshold decision + SHAP explanation out
         |
+src/export_model_for_demo.py -> reports/demo_model_export.json (verified bit-exact vs. predict_proba)
+        |                        -> embedded in the live demo artifact (see link above) - the real
+        |                           model, reimplemented parameter-for-parameter in JavaScript
+        |
 tests/                        -> pytest: leakage guard, feature-engineering unit tests, pipeline
-                                  determinism, API contract tests (20 tests, run via `pytest`)
+                                  determinism, API contract tests (21 tests, run via `pytest`)
 ```
+
+## Tech stack
+
+Python · pandas / scikit-learn · LightGBM · Optuna (hyperparameter search) ·
+imbalanced-learn (SMOTE/SMOTE-Tomek) · SHAP · FastAPI · pytest · vanilla
+JavaScript (the live demo, no framework, no build step).
 
 ## Setup
 
@@ -63,6 +94,7 @@ python src/calibrate.py
 python src/sensitivity_analysis.py
 python src/explain.py
 python src/robustness.py
+python src/export_model_for_demo.py   # regenerate the live-demo model export
 ```
 
 Run the test suite (leakage guard, feature-engineering unit tests, pipeline
@@ -94,7 +126,7 @@ curl -X POST http://127.0.0.1:8000/score -H "Content-Type: application/json" -d 
 
 ## Key results
 
-- **Model chosen: Logistic Regression** (`class_weight='balanced'`, `C=0.302`),
+- **Model chosen: Logistic Regression** (`class_weight='balanced'`, `C=0.124`),
   selected over Random Forest and LightGBM by 5-fold CV PR-AUC - and it also
   happens to be the most interpretable of the three, so no accuracy/
   interpretability trade-off was needed. Full reasoning (the DGP is
@@ -105,35 +137,43 @@ curl -X POST http://127.0.0.1:8000/score -H "Content-Type: application/json" -d 
 - **Imbalance handling:** `class_weight='balanced'` kept over SMOTE/SMOTE-Tomek
   - the resampling variants didn't clear a 0.005 PR-AUC margin, so the
     simpler, synthetic-data-free option won.
-- **Held-out test metrics (served, calibrated model) @ threshold 0.13:**
-  Precision 0.27, Recall 0.84, F1 0.41, ROC-AUC 0.69, PR-AUC 0.435
+- **Held-out test metrics (served, calibrated model) @ threshold 0.14:**
+  Precision 0.27, Recall 0.81, F1 0.41, ROC-AUC 0.69, PR-AUC 0.435
   (vs. 0.226 no-skill baseline).
 - **Threshold chosen via expected-cost minimization** (FP=Rs50, FN=Rs350) on
   training-set out-of-fold predictions only, then applied once to the
-  untouched test set - a 13.4% cost reduction vs. the naive 0.5 threshold
+  untouched test set - a 13.3% cost reduction vs. the naive 0.5 threshold
   (pre-calibration; see [src/evaluate.py](src/evaluate.py)).
 - **Calibration: found miscalibrated, then fixed.** The raw model was
   reliably rank-ordered but not literally calibrated (class-weighting
-  inflates predicted probabilities - a 0.8 raw score meant only ~55% observed
-  return rate). [src/calibrate.py](src/calibrate.py) applies isotonic
-  recalibration (`CalibratedClassifierCV`, 5-fold, training data only),
-  cutting the mean calibration gap from 0.240 to 0.027 (an **88.7%
-  reduction**) with ranking metrics essentially unchanged. This calibrated
-  model is what `app/scoring_api.py` actually serves. See
+  inflates predicted probabilities). [src/calibrate.py](src/calibrate.py)
+  applies isotonic recalibration (`CalibratedClassifierCV`, 5-fold, training
+  data only), cutting the mean calibration gap from 0.240 to 0.025 (an
+  **89.7% reduction**) with ranking metrics essentially unchanged. This
+  calibrated model is what `app/scoring_api.py` actually serves. See
   [MODEL_CARD.md](MODEL_CARD.md#calibration-fixed-via-isotonic-recalibration).
 - **Cost-ratio sensitivity:** the Rs50/Rs350 cost assumption is a judgment
   call, so [src/sensitivity_analysis.py](src/sensitivity_analysis.py) sweeps
   the FN:FP ratio 0.25x-3x and shows the threshold degrades gracefully in
   both directions rather than collapsing - see
   [MODEL_CARD.md](MODEL_CARD.md#sensitivity-to-the-cost-ratio-assumption).
+- **A real correctness bug was found and fixed** while preparing a live demo:
+  the "high order value" threshold was silently recomputed per API call
+  instead of using a fixed, training-derived constant, which zeroed out one
+  of the three interaction features (`new_account_x_high_value`) on every
+  live request. Fixed in [src/feature_engineering.py](src/feature_engineering.py);
+  the whole pipeline was re-run afterward so every number in this repo
+  reflects the fix. Full writeup in
+  [MODEL_CARD.md](MODEL_CARD.md#correctness-fix-high_order_value-threshold-found-while-preparing-a-live-demo).
 - **Robustness:** no feature exceeds 0.17 correlation with the label (no
   leakage), 4/4 handcrafted stress tests passed (new-account-alone and
-  high-value-alone both correctly fail to trigger a flag; only their
-  combination does), and metrics are stable across 3 independent train/test
-  splits (ROC-AUC 0.698 +/- 0.008). Full detail in
-  [ROBUSTNESS.md](ROBUSTNESS.md).
-- **Tested:** 20 passing pytest cases covering a leakage guard, feature-
-  engineering unit tests, pipeline-fit determinism, and the API contract.
+  high-value-alone both correctly fail to trigger a flag on their own, while
+  their combination correctly does trigger one even in an otherwise clean
+  context), and metrics are stable across 3 independent train/test splits
+  (ROC-AUC 0.698 +/- 0.008). Full detail in [ROBUSTNESS.md](ROBUSTNESS.md).
+- **Tested:** 21 passing pytest cases (including a regression test for the
+  bug above) covering a leakage guard, feature-engineering unit tests,
+  pipeline-fit determinism, and the API contract.
 
 ## Repo map
 

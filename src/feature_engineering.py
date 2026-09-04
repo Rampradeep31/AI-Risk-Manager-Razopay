@@ -18,6 +18,9 @@ evaluation time.
 """
 from __future__ import annotations
 
+import json
+import os
+
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -30,9 +33,41 @@ SPLIT_SEED = 2024
 
 FIT_SENSITIVE_CATEGORIES = {"fashion", "footwear"}
 
+# high_order_value must be computed against a FIXED threshold learned once
+# from training data, never recomputed per call - engineer_features() is
+# applied to single-row DataFrames at inference time (one order at a time),
+# where a per-call quantile() is just that one value, silently forcing
+# high_order_value (and the new_account_x_high_value interaction) to 0 for
+# every live prediction. This constant is written by load_and_split() (from
+# the training rows only) and reloaded by every other caller.
+FEATURE_CONSTANTS_PATH = "models/feature_constants.json"
 
-def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+
+def _save_high_value_threshold(threshold: float) -> None:
+    os.makedirs(os.path.dirname(FEATURE_CONSTANTS_PATH), exist_ok=True)
+    with open(FEATURE_CONSTANTS_PATH, "w") as f:
+        json.dump({"high_value_threshold": float(threshold)}, f, indent=2)
+
+
+def _load_high_value_threshold() -> float:
+    if not os.path.exists(FEATURE_CONSTANTS_PATH):
+        raise FileNotFoundError(
+            f"{FEATURE_CONSTANTS_PATH} not found - run `python src/feature_engineering.py` "
+            "(or any script that calls load_and_split()) at least once to derive it from "
+            "training data before calling engineer_features() standalone."
+        )
+    with open(FEATURE_CONSTANTS_PATH) as f:
+        return json.load(f)["high_value_threshold"]
+
+
+def engineer_features(df: pd.DataFrame, high_value_threshold: float | None = None) -> pd.DataFrame:
+    """`high_value_threshold` must be a fixed value learned from training data
+    (see module docstring) - never computed from `df` itself, since `df` may
+    be a single order at inference time. Defaults to the persisted
+    training-derived constant when not supplied."""
     df = df.copy()
+    if high_value_threshold is None:
+        high_value_threshold = _load_high_value_threshold()
 
     # --- delivery mismatch + missingness handling ---
     df["delivery_data_missing"] = df["actual_delivery_days"].isna().astype(int)
@@ -42,7 +77,6 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df["is_new_account"] = ((df["is_first_order"] == 1) | (df["account_age_days"] < 30)).astype(int)
 
     # --- explicit interaction terms (hypothesized in EDA, baked into the generator) ---
-    high_value_threshold = df["order_value"].quantile(0.75)
     df["high_order_value"] = (df["order_value"] > high_value_threshold).astype(int)
     df["new_account_x_high_value"] = df["is_new_account"] * df["high_order_value"]
 
@@ -118,14 +152,23 @@ def load_and_split(seed: int = SPLIT_SEED):
     one particular holdout.
     """
     df = pd.read_csv(DATA_PATH)
-    df = engineer_features(df)
 
+    # Split raw rows first so the high_order_value threshold below can be
+    # derived from training rows only, then reused (fixed) for every row -
+    # train and test alike - exactly like the persisted constant that
+    # inference time will load.
+    train_idx, test_idx = train_test_split(
+        df.index, test_size=TEST_SIZE, stratify=df[LABEL], random_state=seed
+    )
+    high_value_threshold = df.loc[train_idx, "order_value"].quantile(0.75)
+    _save_high_value_threshold(high_value_threshold)
+
+    df = engineer_features(df, high_value_threshold=high_value_threshold)
     X = df[ALL_MODEL_INPUT_COLS]
     y = df[LABEL]
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=TEST_SIZE, stratify=y, random_state=seed
-    )
+    X_train, X_test = X.loc[train_idx], X.loc[test_idx]
+    y_train, y_test = y.loc[train_idx], y.loc[test_idx]
     return X_train, X_test, y_train, y_test
 
 

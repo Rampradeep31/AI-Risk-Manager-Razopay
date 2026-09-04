@@ -1,25 +1,25 @@
 [
   {
     "example_kind": "high_risk",
-    "predicted_proba": 0.9765444403955463,
+    "predicted_proba": 0.9764335590514838,
     "flagged": true,
     "top_contributors": [
       {
         "feature": "new_account_x_high_value",
         "friendly_name": "new account placing a high-value order",
-        "shap_value": 1.1356641202779518,
+        "shap_value": 1.136101142743132,
         "direction": "increases_risk"
       },
       {
         "feature": "fit_category_x_high_discount",
         "friendly_name": "large discount on a fit-sensitive item",
-        "shap_value": 0.7344639936685123,
+        "shap_value": 0.7298493939196268,
         "direction": "increases_risk"
       },
       {
         "feature": "item_category_te",
         "friendly_name": "item category's historical return rate",
-        "shap_value": 0.6149685056213895,
+        "shap_value": 0.6061470476769699,
         "direction": "increases_risk"
       }
     ],
@@ -27,54 +27,54 @@
   },
   {
     "example_kind": "high_risk",
-    "predicted_proba": 0.9579335765810545,
+    "predicted_proba": 0.9573325388856333,
     "flagged": true,
     "top_contributors": [
       {
         "feature": "new_account_x_high_value",
         "friendly_name": "new account placing a high-value order",
-        "shap_value": 1.1356641202779518,
+        "shap_value": 1.136101142743132,
         "direction": "increases_risk"
       },
       {
         "feature": "item_category_te",
         "friendly_name": "item category's historical return rate",
-        "shap_value": 0.9620190988733326,
+        "shap_value": 0.9482193498701466,
         "direction": "increases_risk"
       },
       {
         "feature": "fit_category_x_high_discount",
         "friendly_name": "large discount on a fit-sensitive item",
-        "shap_value": 0.7344639936685123,
+        "shap_value": 0.7298493939196268,
         "direction": "increases_risk"
       }
     ],
-    "explanation_sentence": "Order flagged as high return-risk (predicted return probability 96%). Top drivers: new account placing a high-value order (+1.14); item category's historical return rate (+0.96); large discount on a fit-sensitive item (+0.73)."
+    "explanation_sentence": "Order flagged as high return-risk (predicted return probability 96%). Top drivers: new account placing a high-value order (+1.14); item category's historical return rate (+0.95); large discount on a fit-sensitive item (+0.73)."
   },
   {
     "example_kind": "borderline",
-    "predicted_proba": 0.3499601977888248,
+    "predicted_proba": 0.35995979943671025,
     "flagged": false,
     "top_contributors": [
       {
-        "feature": "actual_delivery_days",
-        "friendly_name": "actual delivery time",
-        "shap_value": 0.18678122843963904,
+        "feature": "item_category_te",
+        "friendly_name": "item category's historical return rate",
+        "shap_value": 0.6061470476769699,
         "direction": "increases_risk"
       },
       {
-        "feature": "device_type_te",
-        "friendly_name": "device type's historical return rate",
-        "shap_value": -0.17251823991127124,
+        "feature": "prior_orders_count",
+        "friendly_name": "number of prior orders",
+        "shap_value": -0.28272242436016465,
         "direction": "decreases_risk"
       },
       {
-        "feature": "discount_pct",
-        "friendly_name": "discount applied",
-        "shap_value": -0.14932721570267474,
+        "feature": "is_fit_sensitive_category",
+        "friendly_name": "fit-sensitive category (fashion/footwear)",
+        "shap_value": -0.20079640880886437,
         "direction": "decreases_risk"
       }
     ],
-    "explanation_sentence": "Order not flagged (low return-risk) (predicted return probability 35%). Top drivers: actual delivery time (+0.19); device type's historical return rate (-0.17); discount applied (-0.15)."
+    "explanation_sentence": "Order not flagged (low return-risk) (predicted return probability 36%). Top drivers: item category's historical return rate (+0.61); number of prior orders (-0.28); fit-sensitive category (fashion/footwear) (-0.20)."
   }
 ]

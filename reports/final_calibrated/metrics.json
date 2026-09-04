@@ -1,18 +1,18 @@
 {
-  "chosen_threshold": 0.13,
-  "test_precision": 0.2706349206349206,
-  "test_recall": 0.8378378378378378,
-  "test_f1": 0.4091181763647271,
-  "test_roc_auc": 0.6892632696652797,
-  "test_pr_auc": 0.43541160728640704,
+  "chosen_threshold": 0.14,
+  "test_precision": 0.2740066225165563,
+  "test_recall": 0.8132678132678133,
+  "test_f1": 0.40990712074303404,
+  "test_roc_auc": 0.6888849300909603,
+  "test_pr_auc": 0.4348666629521667,
   "test_confusion_matrix": {
-    "tn": 474,
-    "fp": 919,
-    "fn": 66,
-    "tp": 341
+    "tn": 516,
+    "fp": 877,
+    "fn": 76,
+    "tp": 331
   },
-  "test_expected_cost_at_chosen_threshold": 69050.0,
-  "mean_abs_calibration_gap_before": 0.23996856796179666,
-  "mean_abs_calibration_gap_after": 0.027205156876424153,
-  "calibration_gap_reduction": 0.8866303320160028
+  "test_expected_cost_at_chosen_threshold": 70450.0,
+  "mean_abs_calibration_gap_before": 0.24011895480741846,
+  "mean_abs_calibration_gap_after": 0.024647960939071355,
+  "calibration_gap_reduction": 0.897351040200722
 }

@@ -21,7 +21,7 @@ from explainer import FEATURE_NAMES, RiskExplainer
 from feature_engineering import load_and_split
 
 OUT_DIR = "reports/shap"
-THRESHOLD = 0.35  # chosen in evaluate.py
+THRESHOLD = 0.36  # chosen in evaluate.py
 
 
 def main():

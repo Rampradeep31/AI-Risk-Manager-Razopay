@@ -1,21 +1,21 @@
 {
-  "chosen_threshold": 0.35000000000000003,
+  "chosen_threshold": 0.36000000000000004,
   "cost_false_positive_inr": 50.0,
   "cost_false_negative_inr": 350.0,
-  "train_oof_expected_cost_at_chosen_threshold": 263550.0,
-  "train_oof_expected_cost_at_naive_0.5": 304450.0,
-  "train_oof_cost_reduction_vs_naive": 0.1343406142223682,
-  "test_precision": 0.2704598597038192,
-  "test_recall": 0.8525798525798526,
-  "test_f1": 0.4106508875739645,
-  "test_roc_auc": 0.6899008909059159,
-  "test_pr_auc": 0.4370421328747446,
+  "train_oof_expected_cost_at_chosen_threshold": 263650.0,
+  "train_oof_expected_cost_at_naive_0.5": 304150.0,
+  "train_oof_cost_reduction_vs_naive": 0.13315798125924705,
+  "test_precision": 0.2731668009669621,
+  "test_recall": 0.8329238329238329,
+  "test_f1": 0.41140776699029125,
+  "test_roc_auc": 0.6898779612347452,
+  "test_pr_auc": 0.4370478694256453,
   "test_confusion_matrix": {
-    "tn": 457,
-    "fp": 936,
-    "fn": 60,
-    "tp": 347
+    "tn": 491,
+    "fp": 902,
+    "fn": 68,
+    "tp": 339
   },
-  "test_expected_cost_at_chosen_threshold": 67800.0,
+  "test_expected_cost_at_chosen_threshold": 68900.0,
   "test_positive_rate": 0.22611111111111112
 }
