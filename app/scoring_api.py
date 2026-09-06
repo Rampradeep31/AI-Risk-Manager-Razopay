@@ -16,13 +16,17 @@ SHAP's numbers, never from a model's guess. Run locally:
 
     uvicorn app.scoring_api:app --reload --port 8000
 """
+import json
 import sys
+from collections import deque
 from pathlib import Path
 from typing import Literal, Optional
 
 import joblib
 import pandas as pd
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel, Field
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -30,8 +34,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from explainer import RiskExplainer  # noqa: E402
 from feature_engineering import ALL_MODEL_INPUT_COLS, engineer_features, load_and_split  # noqa: E402
 
-MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "final_model_calibrated.joblib"
-EXPLAIN_MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "final_model.joblib"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+MODEL_PATH = PROJECT_ROOT / "models" / "final_model_calibrated.joblib"
+EXPLAIN_MODEL_PATH = PROJECT_ROOT / "models" / "final_model.joblib"
+REPORTS_DIR = PROJECT_ROOT / "reports"
 THRESHOLD = 0.14  # chosen in calibrate.py via cost-based optimization on calibrated train OOF predictions
 
 app = FastAPI(
@@ -40,6 +46,14 @@ app = FastAPI(
                  "See MODEL_CARD.md for intended use, limitations, and calibration caveats.",
     version="1.0.0",
 )
+
+# --- Mount static file directories ---
+app.mount("/reports", StaticFiles(directory=str(REPORTS_DIR)), name="reports")
+app.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "static")), name="static")
+
+# --- In-memory scoring history for dashboard ---
+_scoring_history = deque(maxlen=50)
+_scoring_stats = {"total_scored": 0, "total_flagged": 0, "sum_risk": 0.0}
 
 _pipeline = None       # calibrated model: used for the risk_score users see
 _explain_pipeline = None  # uncalibrated pipeline: used only for SHAP attribution
@@ -115,6 +129,13 @@ class ScoreResponse(BaseModel):
     )
 
 
+# --- Root: serve the dashboard ---
+@app.get("/", response_class=HTMLResponse)
+def serve_dashboard():
+    html_path = Path(__file__).resolve().parent / "static" / "index.html"
+    return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -134,6 +155,19 @@ def score(order: OrderFeatures):
     contributors = RiskExplainer.top_contributors(exp[0], top_n=3)
     sentence = RiskExplainer.format_sentence(contributors, proba, flagged)
 
+    # Track in scoring history
+    _scoring_stats["total_scored"] += 1
+    if flagged:
+        _scoring_stats["total_flagged"] += 1
+    _scoring_stats["sum_risk"] += proba
+    _scoring_history.append({
+        "risk_score": round(proba, 4),
+        "flagged": flagged,
+        "category": order.item_category,
+        "payment": order.payment_method,
+        "order_value": order.order_value,
+    })
+
     return ScoreResponse(
         risk_score=round(proba, 4),
         flagged_for_review=flagged,
@@ -141,3 +175,63 @@ def score(order: OrderFeatures):
         top_contributors=contributors,
         explanation=sentence,
     )
+
+
+# --- Dashboard data endpoints ---
+
+@app.get("/api/metrics")
+def get_metrics():
+    """Return model performance metrics from reports."""
+    metrics_path = REPORTS_DIR / "final_calibrated" / "metrics.json"
+    if metrics_path.exists():
+        return json.loads(metrics_path.read_text())
+    return {"error": "metrics not found"}
+
+
+@app.get("/api/robustness")
+def get_robustness():
+    """Return robustness test results."""
+    robustness_path = REPORTS_DIR / "robustness_results.json"
+    if robustness_path.exists():
+        return json.loads(robustness_path.read_text())
+    return {"error": "robustness results not found"}
+
+
+@app.get("/api/sensitivity")
+def get_sensitivity():
+    """Return threshold sensitivity analysis data."""
+    csv_path = REPORTS_DIR / "final_calibrated" / "threshold_sensitivity.csv"
+    if csv_path.exists():
+        df = pd.read_csv(csv_path)
+        return df.to_dict(orient="records")
+    return {"error": "sensitivity data not found"}
+
+
+@app.get("/api/model-info")
+def get_model_info():
+    """Return model selection and training summary."""
+    summary_path = REPORTS_DIR / "model_selection_summary.json"
+    comparison_path = REPORTS_DIR / "model_comparison.csv"
+
+    result = {}
+    if summary_path.exists():
+        result["summary"] = json.loads(summary_path.read_text())
+    if comparison_path.exists():
+        df = pd.read_csv(comparison_path)
+        result["comparison"] = df.to_dict(orient="records")
+
+    return result
+
+
+@app.get("/api/scoring-history")
+def get_scoring_history():
+    """Return recent scoring history and stats."""
+    return {
+        "history": list(_scoring_history),
+        "stats": {
+            "total_scored": _scoring_stats["total_scored"],
+            "total_flagged": _scoring_stats["total_flagged"],
+            "flag_rate": round(_scoring_stats["total_flagged"] / max(1, _scoring_stats["total_scored"]), 3),
+            "avg_risk": round(_scoring_stats["sum_risk"] / max(1, _scoring_stats["total_scored"]), 4),
+        }
+    }

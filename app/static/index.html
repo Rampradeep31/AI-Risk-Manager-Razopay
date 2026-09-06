@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Risk Manager — Return-Risk Scorer · Razorpay</title>
+    <meta name="description" content="AI-powered return-risk scoring for e-commerce orders. Real-time SHAP-grounded explanations, calibrated predictions, and cost-optimized thresholds — built with scikit-learn, LightGBM, and FastAPI.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Ambient background -->
+    <div class="ambient-bg">
+        <div class="grid-bg"></div>
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- ====== STICKY NAV ====== -->
+    <nav class="nav" id="mainNav">
+        <div class="nav-inner">
+            <a href="#hero" class="nav-logo">
+                <div class="nav-logo-icon">
+                    <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+                        <path d="M14 2L26 8V20L14 26L2 20V8L14 2Z" stroke="url(#nav-logo-g)" stroke-width="2" fill="none"/>
+                        <path d="M14 10L20 13V19L14 22L8 19V13L14 10Z" fill="url(#nav-logo-g)" opacity="0.6"/>
+                        <defs><linearGradient id="nav-logo-g" x1="2" y1="2" x2="26" y2="26"><stop stop-color="#0C83FF"/><stop offset="1" stop-color="#4F46E5"/></linearGradient></defs>
+                    </svg>
+                </div>
+                <span class="nav-logo-text">AI Risk Manager</span>
+            </a>
+            <div class="nav-links">
+                <a href="#hero" class="nav-link active" data-section="hero">Home</a>
+                <a href="#scorer" class="nav-link" data-section="scorer">Scorer</a>
+                <a href="#performance" class="nav-link" data-section="performance">Performance</a>
+                <a href="#architecture" class="nav-link" data-section="architecture">Architecture</a>
+                <a href="#robustness" class="nav-link" data-section="robustness">Trust</a>
+            </div>
+            <div class="nav-actions">
+                <div class="status-badge" id="apiStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Checking…</span>
+                </div>
+                <a href="/docs" target="_blank" class="btn-ghost-sm" title="Swagger API Docs">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 012.5 1h3A1.5 1.5 0 017 2.5v3A1.5 1.5 0 015.5 7h-3A1.5 1.5 0 011 5.5v-3zm8 0A1.5 1.5 0 0110.5 1h3A1.5 1.5 0 0115 2.5v3A1.5 1.5 0 0113.5 7h-3A1.5 1.5 0 019 5.5v-3zm-8 8A1.5 1.5 0 012.5 9h3A1.5 1.5 0 017 10.5v3A1.5 1.5 0 015.5 15h-3A1.5 1.5 0 011 13.5v-3zm8 0A1.5 1.5 0 0110.5 9h3a1.5 1.5 0 011.5 1.5v3a1.5 1.5 0 01-1.5 1.5h-3A1.5 1.5 0 019 13.5v-3z"/></svg>
+                    API
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <!-- ===============================================================
+             SECTION 1 — HERO
+             =============================================================== -->
+        <section class="section section-hero" id="hero">
+            <div class="container">
+                <div class="hero-badge animate-on-scroll">
+                    <span class="hero-badge-dot"></span>
+                    Built with real ML rigor — not a toy demo
+                </div>
+                <h1 class="hero-title animate-on-scroll">
+                    Score Order<br>
+                    <span class="gradient-text">Return Risk</span><br>
+                    <span class="hero-title-sub">in Real Time</span>
+                </h1>
+                <p class="hero-desc animate-on-scroll">
+                    Calibrated risk scores, cost-optimized thresholds, and SHAP-grounded explanations — powered by a real trained model with isotonic recalibration and 21 passing tests.
+                </p>
+                <div class="hero-cta animate-on-scroll">
+                    <a href="#scorer" class="btn-primary-hero">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                        Try the Scorer
+                    </a>
+                    <a href="#performance" class="btn-ghost-hero">View Performance</a>
+                </div>
+
+                <!-- Hero Stats -->
+                <div class="hero-stats animate-on-scroll">
+                    <div class="stat-card">
+                        <div class="stat-value counter-value" data-target="81" data-suffix="%" data-decimals="0">0%</div>
+                        <div class="stat-label">Recall @ T=0.14</div>
+                        <div class="stat-desc">Catches 4 of 5 returns</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value counter-value" data-target="89.7" data-suffix="%" data-decimals="1">0%</div>
+                        <div class="stat-label">Calibration Fix</div>
+                        <div class="stat-desc">Isotonic recalibration</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value counter-value" data-target="21" data-suffix="" data-decimals="0">0</div>
+                        <div class="stat-label">Tests Passing</div>
+                        <div class="stat-desc">Leakage · Unit · API</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value counter-value" data-target="7" data-suffix=":1" data-decimals="0">0</div>
+                        <div class="stat-label">Cost Ratio</div>
+                        <div class="stat-desc">FN:FP optimized threshold</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===============================================================
+             SECTION 2 — LIVE RISK SCORER
+             =============================================================== -->
+        <section class="section section-scorer" id="scorer">
+            <div class="container">
+                <div class="section-header animate-on-scroll">
+                    <div class="section-tag">Live Demo</div>
+                    <h2 class="section-heading">Risk <span class="gradient-text">Scorer</span></h2>
+                    <p class="section-subheading">Enter order details or use a preset scenario — the real trained model scores it live.</p>
+                </div>
+
+                <!-- Preset Scenarios -->
+                <div class="presets animate-on-scroll">
+                    <button class="preset-btn" data-preset="high_risk" type="button">
+                        <span class="preset-icon">🔴</span>
+                        <span class="preset-name">High Risk</span>
+                        <span class="preset-desc">New account, COD, big discount</span>
+                    </button>
+                    <button class="preset-btn" data-preset="safe_buyer" type="button">
+                        <span class="preset-icon">🟢</span>
+                        <span class="preset-name">Safe Buyer</span>
+                        <span class="preset-desc">Established customer, UPI</span>
+                    </button>
+                    <button class="preset-btn" data-preset="edge_case" type="button">
+                        <span class="preset-icon">🟡</span>
+                        <span class="preset-name">Edge Case</span>
+                        <span class="preset-desc">Borderline threshold scenario</span>
+                    </button>
+                </div>
+
+                <div class="scorer-layout">
+                    <!-- Left: Input Form -->
+                    <div class="panel panel-form animate-on-scroll">
+                        <div class="panel-header">
+                            <h3 class="panel-title">
+                                <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><rect x="1" y="1" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M5 9h8M9 5v8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                                Order Features
+                            </h3>
+                            <button class="btn-text" id="fillExample" type="button">Fill example</button>
+                        </div>
+
+                        <form id="scoreForm" autocomplete="off">
+                            <!-- Customer Profile -->
+                            <fieldset class="field-group">
+                                <legend class="field-legend">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M7 7a3 3 0 100-6 3 3 0 000 6zm0 1.5c-3.315 0-6 1.343-6 3V13h12v-1.5c0-1.657-2.685-3-6-3z"/></svg>
+                                    Customer Profile
+                                </legend>
+                                <div class="field-grid">
+                                    <div class="field">
+                                        <label for="account_age_days">Account Age (days)</label>
+                                        <input type="number" id="account_age_days" name="account_age_days" min="0" value="0" required>
+                                    </div>
+                                    <div class="field">
+                                        <label for="prior_orders_count">Prior Orders</label>
+                                        <input type="number" id="prior_orders_count" name="prior_orders_count" min="0" value="0" required>
+                                    </div>
+                                    <div class="field">
+                                        <label for="prior_return_rate">Prior Return Rate</label>
+                                        <input type="number" id="prior_return_rate" name="prior_return_rate" min="0" max="1" step="0.01" value="0" required>
+                                    </div>
+                                    <div class="field">
+                                        <label for="is_first_order">First Order?</label>
+                                        <select id="is_first_order" name="is_first_order" required>
+                                            <option value="1">Yes</option>
+                                            <option value="0">No</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <!-- Order Details -->
+                            <fieldset class="field-group">
+                                <legend class="field-legend">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M2 1.5A.5.5 0 012.5 1h9a.5.5 0 01.5.5v11a.5.5 0 01-.5.5h-9a.5.5 0 01-.5-.5v-11zM4 4h6M4 6.5h6M4 9h3"/></svg>
+                                    Order Details
+                                </legend>
+                                <div class="field-grid">
+                                    <div class="field">
+                                        <label for="order_value">Order Value (₹)</label>
+                                        <input type="number" id="order_value" name="order_value" min="1" step="0.01" value="4500" required>
+                                    </div>
+                                    <div class="field">
+                                        <label for="item_category">Item Category</label>
+                                        <select id="item_category" name="item_category" required>
+                                            <option value="fashion">Fashion</option>
+                                            <option value="footwear" selected>Footwear</option>
+                                            <option value="electronics">Electronics</option>
+                                            <option value="home">Home</option>
+                                            <option value="beauty">Beauty</option>
+                                            <option value="grocery">Grocery</option>
+                                            <option value="toys">Toys</option>
+                                            <option value="sports">Sports</option>
+                                        </select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="item_count">Item Count</label>
+                                        <input type="number" id="item_count" name="item_count" min="1" value="1" required>
+                                    </div>
+                                    <div class="field">
+                                        <label for="discount_pct">Discount (%)</label>
+                                        <input type="number" id="discount_pct" name="discount_pct" min="0" max="100" step="0.1" value="55" required>
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <!-- Payment & Delivery -->
+                            <fieldset class="field-group">
+                                <legend class="field-legend">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M1 3.5A1.5 1.5 0 012.5 2h9A1.5 1.5 0 0113 3.5v7a1.5 1.5 0 01-1.5 1.5h-9A1.5 1.5 0 011 10.5v-7zM1 6h12"/></svg>
+                                    Payment &amp; Delivery
+                                </legend>
+                                <div class="field-grid">
+                                    <div class="field">
+                                        <label for="payment_method">Payment Method</label>
+                                        <select id="payment_method" name="payment_method" required>
+                                            <option value="card">Card</option>
+                                            <option value="upi">UPI</option>
+                                            <option value="netbanking">Netbanking</option>
+                                            <option value="wallet">Wallet</option>
+                                            <option value="cod" selected>COD</option>
+                                        </select>
+                                    </div>
+                                    <div class="field">
+                                        <label for="delivery_promise_days">Promised Delivery (days)</label>
+                                        <input type="number" id="delivery_promise_days" name="delivery_promise_days" min="1" value="3" required>
+                                    </div>
+                                    <div class="field">
+                                        <label for="actual_delivery_days">Actual Delivery (days)</label>
+                                        <input type="number" id="actual_delivery_days" name="actual_delivery_days" min="1" value="7">
+                                        <span class="field-hint">Leave blank if in transit</span>
+                                    </div>
+                                    <div class="field">
+                                        <label for="device_type">Device</label>
+                                        <select id="device_type" name="device_type" required>
+                                            <option value="mobile" selected>Mobile</option>
+                                            <option value="desktop">Desktop</option>
+                                            <option value="tablet">Tablet</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <!-- Context -->
+                            <fieldset class="field-group">
+                                <legend class="field-legend">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M7 .5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM7 4v3.5l2.5 1.5"/></svg>
+                                    Context
+                                </legend>
+                                <div class="field-grid field-grid-half">
+                                    <div class="field">
+                                        <label for="time_of_day">Time of Day</label>
+                                        <select id="time_of_day" name="time_of_day" required>
+                                            <option value="morning">Morning</option>
+                                            <option value="afternoon">Afternoon</option>
+                                            <option value="evening" selected>Evening</option>
+                                            <option value="late_night">Late Night</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </fieldset>
+
+                            <button type="submit" class="btn-primary" id="submitBtn">
+                                <svg class="btn-icon" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 1v16M1 9l8 8 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" transform="rotate(-90 9 9)"/></svg>
+                                <span class="btn-label">Analyze Risk</span>
+                                <div class="btn-loader" hidden>
+                                    <div class="spinner"></div>
+                                </div>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Right: Results -->
+                    <div class="panel panel-results animate-on-scroll">
+                        <!-- Empty state -->
+                        <div class="empty-state" id="emptyState">
+                            <div class="empty-icon">
+                                <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                                    <circle cx="32" cy="32" r="28" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.3"/>
+                                    <path d="M32 20v12l8 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                                    <circle cx="32" cy="32" r="3" fill="currentColor" opacity="0.4"/>
+                                </svg>
+                            </div>
+                            <p class="empty-text">Submit an order to see its risk analysis</p>
+                            <p class="empty-hint">The model returns a calibrated probability, a flag/no-flag decision, and the SHAP features that drove it.</p>
+                        </div>
+
+                        <!-- Results (hidden until scored) -->
+                        <div class="results" id="results" hidden>
+                            <!-- Risk Gauge -->
+                            <div class="result-section gauge-section">
+                                <div class="gauge-container">
+                                    <svg class="gauge-svg" viewBox="0 0 200 120">
+                                        <defs>
+                                            <linearGradient id="gauge-bg-grad" x1="0" y1="0" x2="1" y2="0">
+                                                <stop offset="0%" stop-color="#22c55e" stop-opacity="0.15"/>
+                                                <stop offset="50%" stop-color="#eab308" stop-opacity="0.15"/>
+                                                <stop offset="100%" stop-color="#ef4444" stop-opacity="0.15"/>
+                                            </linearGradient>
+                                            <linearGradient id="gauge-fill-grad" x1="0" y1="0" x2="1" y2="0">
+                                                <stop offset="0%" stop-color="#22c55e"/>
+                                                <stop offset="50%" stop-color="#eab308"/>
+                                                <stop offset="100%" stop-color="#ef4444"/>
+                                            </linearGradient>
+                                        </defs>
+                                        <path class="gauge-bg" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gauge-bg-grad)" stroke-width="12" stroke-linecap="round"/>
+                                        <path class="gauge-fill" id="gaugeFill" d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gauge-fill-grad)" stroke-width="12" stroke-linecap="round" stroke-dasharray="251.33" stroke-dashoffset="251.33"/>
+                                        <circle class="gauge-threshold" id="gaugeThreshold" cx="100" cy="20" r="4" fill="#D97706" stroke="#FFFFFF" stroke-width="2"/>
+                                        <text id="gaugeThresholdLabel" x="100" y="12" text-anchor="middle" fill="#D97706" font-size="8" font-family="JetBrains Mono, monospace">T=0.14</text>
+                                        <line class="gauge-needle" id="gaugeNeedle" x1="100" y1="100" x2="20" y2="100" stroke="#0F172A" stroke-width="2.5" stroke-linecap="round"/>
+                                        <circle cx="100" cy="100" r="6" fill="#0F172A" stroke="#FFFFFF" stroke-width="2"/>
+                                    </svg>
+                                    <div class="gauge-value" id="gaugeValue">—</div>
+                                    <div class="gauge-label">Risk Score</div>
+                                </div>
+                            </div>
+
+                            <!-- Decision Badge -->
+                            <div class="result-section decision-section" id="decisionSection">
+                                <div class="decision-badge" id="decisionBadge">
+                                    <span class="decision-icon" id="decisionIcon"></span>
+                                    <span class="decision-text" id="decisionText"></span>
+                                </div>
+                            </div>
+
+                            <!-- Explanation -->
+                            <div class="result-section explanation-section">
+                                <h3 class="section-title-sm">
+                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 2.5a1 1 0 110 2 1 1 0 010-2zM6.5 7h2v4.5h-2V7z" fill-rule="evenodd"/></svg>
+                                    Model Explanation
+                                </h3>
+                                <p class="explanation-text" id="explanationText"></p>
+                            </div>
+
+                            <!-- SHAP Contributors -->
+                            <div class="result-section contributors-section">
+                                <h3 class="section-title-sm">
+                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 4h4v12H0V4zm6 2h4v10H6V6zm6-6h4v16h-4V0z"/></svg>
+                                    Top Risk Drivers (SHAP)
+                                </h3>
+                                <div class="contributors-list" id="contributorsList"></div>
+                            </div>
+
+                            <!-- Calibration Note -->
+                            <div class="result-section calibration-section">
+                                <div class="calibration-note" id="calibrationNote">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" opacity="0.5"><path d="M7 0a7 7 0 100 14A7 7 0 007 0zm0 2.5a1 1 0 110 2 1 1 0 010-2zM5.5 6h2v5h-2V6z"/></svg>
+                                    <span></span>
+                                </div>
+                            </div>
+
+                            <!-- Raw JSON toggle -->
+                            <div class="result-section raw-section">
+                                <button class="btn-text" id="toggleRaw" type="button">
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M4.5 1L1 7l3.5 6h1.414L2.414 7l3.5-6H4.5zm5 0l3.5 6-3.5 6H8.086L11.586 7l-3.5-6H9.5z"/></svg>
+                                    Show raw JSON
+                                </button>
+                                <pre class="raw-json" id="rawJson" hidden></pre>
+                            </div>
+                        </div>
+
+                        <!-- Error state -->
+                        <div class="error-state" id="errorState" hidden>
+                            <div class="error-icon">⚠</div>
+                            <p class="error-text" id="errorText"></p>
+                            <button class="btn-text" id="retryBtn" type="button">Try again</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Score History -->
+                <div class="score-history animate-on-scroll" id="scoreHistoryWrapper" hidden>
+                    <div class="score-history-header">
+                        <h3 class="section-title-sm">
+                            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .5A7.77 7.77 0 005.5 1.1 7.5 7.5 0 1015.5 8h-3A4.5 4.5 0 118 3.5V.5z"/><path d="M8 5v3.5l2.5 1.5"/></svg>
+                            Session History
+                        </h3>
+                        <span class="history-count"><span id="historyCount">0</span> scored</span>
+                    </div>
+                    <div class="score-history-chart" id="scoreHistoryChart"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===============================================================
+             SECTION 3 — MODEL PERFORMANCE
+             =============================================================== -->
+        <section class="section section-performance" id="performance">
+            <div class="container">
+                <div class="section-header animate-on-scroll">
+                    <div class="section-tag">Model Metrics</div>
+                    <h2 class="section-heading">Performance <span class="gradient-text">Dashboard</span></h2>
+                    <p class="section-subheading">All metrics from the held-out test set — real numbers, not cherry-picked.</p>
+                </div>
+
+                <!-- Key Metrics Bar -->
+                <div class="metrics-bar-grid animate-on-scroll">
+                    <div id="metricsBarChart"></div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="perf-grid">
+                    <!-- Confusion Matrix -->
+                    <div class="perf-card animate-on-scroll">
+                        <div class="perf-card-header">
+                            <h3 class="perf-card-title">Confusion Matrix</h3>
+                            <span class="perf-card-badge">Test Set · N=1800</span>
+                        </div>
+                        <div class="perf-card-body" id="confusionMatrix">
+                            <div class="chart-loading">Loading…</div>
+                        </div>
+                    </div>
+
+                    <!-- Calibration -->
+                    <div class="perf-card animate-on-scroll">
+                        <div class="perf-card-header">
+                            <h3 class="perf-card-title">Calibration Gap</h3>
+                            <span class="perf-card-badge">Isotonic Fix</span>
+                        </div>
+                        <div class="perf-card-body" id="calibrationChart">
+                            <div class="chart-loading">Loading…</div>
+                        </div>
+                    </div>
+
+                    <!-- Sensitivity Analysis -->
+                    <div class="perf-card perf-card-wide animate-on-scroll">
+                        <div class="perf-card-header">
+                            <h3 class="perf-card-title">Threshold Sensitivity</h3>
+                            <span class="perf-card-badge">FN:FP Cost Ratio Sweep</span>
+                        </div>
+                        <div class="perf-card-body perf-card-canvas" id="sensitivityChart">
+                            <div class="chart-loading">Loading…</div>
+                        </div>
+                    </div>
+
+                    <!-- Model Comparison -->
+                    <div class="perf-card perf-card-wide animate-on-scroll">
+                        <div class="perf-card-header">
+                            <h3 class="perf-card-title">Model Comparison</h3>
+                            <span class="perf-card-badge">5-Fold CV</span>
+                        </div>
+                        <div class="perf-card-body" id="modelComparison">
+                            <div class="chart-loading">Loading…</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===============================================================
+             SECTION 4 — ARCHITECTURE
+             =============================================================== -->
+        <section class="section section-architecture" id="architecture">
+            <div class="container">
+                <div class="section-header animate-on-scroll">
+                    <div class="section-tag">How It Works</div>
+                    <h2 class="section-heading">Architecture &amp; <span class="gradient-text">Pipeline</span></h2>
+                    <p class="section-subheading">A 10-stage ML pipeline with proper cross-validation, calibration, and explainability.</p>
+                </div>
+
+                <!-- Pipeline Flow -->
+                <div class="pipeline animate-on-scroll">
+                    <div class="pipeline-step">
+                        <div class="pipeline-step-num">1</div>
+                        <div class="pipeline-step-content">
+                            <h4>Data Generation</h4>
+                            <p>9,000 orders with realistic noise. 22.6% return rate — genuinely imbalanced.</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-step-num">2</div>
+                        <div class="pipeline-step-content">
+                            <h4>EDA &amp; Leakage Check</h4>
+                            <p>Class balance, distributions, correlation audit. No feature &gt; 0.17 correlation with label.</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-step-num">3</div>
+                        <div class="pipeline-step-content">
+                            <h4>Feature Engineering</h4>
+                            <p>Leakage-free transforms: delivery mismatch, interaction terms, target encoding (fit on train only).</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-step-num">4</div>
+                        <div class="pipeline-step-content">
+                            <h4>Model Selection</h4>
+                            <p>5-fold CV across 3 families: Logistic Regression, Random Forest, LightGBM. LR won on PR-AUC.</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-step-num">5</div>
+                        <div class="pipeline-step-content">
+                            <h4>Imbalance Handling</h4>
+                            <p><code>class_weight='balanced'</code> beat SMOTE/SMOTE-Tomek. Simpler wins when margin is &lt; 0.005 PR-AUC.</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-step-num">6</div>
+                        <div class="pipeline-step-content">
+                            <h4>Cost-Based Threshold</h4>
+                            <p>₹50 FP / ₹350 FN cost model → T=0.14 (not 0.5). 13.3% cost reduction vs naive.</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-step-num">7</div>
+                        <div class="pipeline-step-content">
+                            <h4>Isotonic Calibration</h4>
+                            <p>Raw probs were rank-ordered but inflated. Isotonic cut calibration gap 89.7%.</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-step-num">8</div>
+                        <div class="pipeline-step-content">
+                            <h4>SHAP Explanations</h4>
+                            <p>Per-decision attribution. Template-based sentences from real log-odds — not LLM hallucinations.</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-step-num">9</div>
+                        <div class="pipeline-step-content">
+                            <h4>Robustness Checks</h4>
+                            <p>Leakage audit, 4 stress tests, 3-seed stability. Bug found &amp; fixed during demo prep.</p>
+                        </div>
+                    </div>
+                    <div class="pipeline-connector"></div>
+                    <div class="pipeline-step">
+                        <div class="pipeline-step-num">10</div>
+                        <div class="pipeline-step-content">
+                            <h4>FastAPI Serving</h4>
+                            <p>Live scoring with calibrated model. SHAP explains each decision in real time.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Key Decisions -->
+                <div class="decisions-grid animate-on-scroll">
+                    <h3 class="subsection-title">Key Design Decisions</h3>
+                    <div class="decision-cards">
+                        <div class="decision-card">
+                            <div class="decision-card-icon">🎯</div>
+                            <h4>Why Logistic Regression?</h4>
+                            <p>The DGP is log-odds-linear with interaction features already materialized — this removes trees' usual structural advantage. LR won on CV PR-AUC <em>and</em> is fully interpretable.</p>
+                        </div>
+                        <div class="decision-card">
+                            <div class="decision-card-icon">📐</div>
+                            <h4>Why Isotonic Calibration?</h4>
+                            <p><code>class_weight='balanced'</code> inflates predicted probabilities. Isotonic recalibration makes "30% score ≈ 30% observed return rate" true — verified, not assumed.</p>
+                        </div>
+                        <div class="decision-card">
+                            <div class="decision-card-icon">🐛</div>
+                            <h4>The Bug We Found</h4>
+                            <p>High-value threshold was recomputed per API call (quantile of 1 row = that row). Silently zeroed <code>new_account_x_high_value</code>. Caught during demo, fixed, regression test added.</p>
+                        </div>
+                        <div class="decision-card">
+                            <div class="decision-card-icon">💰</div>
+                            <h4>Why Not 0.5 Threshold?</h4>
+                            <p>Missing a return (FN) costs 7× more than a false flag (FP). The cost-optimized T=0.14 catches 81% of returns instead of ~30% at T=0.5.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tech Stack -->
+                <div class="tech-stack animate-on-scroll">
+                    <h3 class="subsection-title">Tech Stack</h3>
+                    <div class="tech-badges">
+                        <div class="tech-badge"><span class="tech-emoji">🐍</span>Python</div>
+                        <div class="tech-badge"><span class="tech-emoji">🧠</span>scikit-learn</div>
+                        <div class="tech-badge"><span class="tech-emoji">🌿</span>LightGBM</div>
+                        <div class="tech-badge"><span class="tech-emoji">🔍</span>Optuna</div>
+                        <div class="tech-badge"><span class="tech-emoji">⚖️</span>imbalanced-learn</div>
+                        <div class="tech-badge"><span class="tech-emoji">📊</span>SHAP</div>
+                        <div class="tech-badge"><span class="tech-emoji">⚡</span>FastAPI</div>
+                        <div class="tech-badge"><span class="tech-emoji">🧪</span>pytest</div>
+                        <div class="tech-badge"><span class="tech-emoji">🌐</span>Vanilla JS</div>
+                        <div class="tech-badge"><span class="tech-emoji">🐼</span>pandas</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===============================================================
+             SECTION 5 — ROBUSTNESS & TRUST
+             =============================================================== -->
+        <section class="section section-robustness" id="robustness">
+            <div class="container">
+                <div class="section-header animate-on-scroll">
+                    <div class="section-tag">Trust &amp; Reliability</div>
+                    <h2 class="section-heading">Robustness <span class="gradient-text">Audit</span></h2>
+                    <p class="section-subheading">Leakage checks, stress tests, and seed-stability — the model's metrics survive being questioned.</p>
+                </div>
+
+                <!-- Stress Tests -->
+                <div class="robustness-block animate-on-scroll">
+                    <h3 class="subsection-title">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" opacity="0.6"><path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM7 4.5h2v4H7v-4zm0 5h2v2H7v-2z"/></svg>
+                        Stress Tests
+                    </h3>
+                    <div class="stress-grid" id="stressTests">
+                        <div class="chart-loading">Loading…</div>
+                    </div>
+                </div>
+
+                <!-- Stability -->
+                <div class="robustness-block animate-on-scroll">
+                    <h3 class="subsection-title">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" opacity="0.6"><path d="M8 .5A7.77 7.77 0 005.5 1.1 7.5 7.5 0 1015.5 8h-3A4.5 4.5 0 118 3.5V.5z"/></svg>
+                        Seed Stability
+                    </h3>
+                    <div id="stabilityResults">
+                        <div class="chart-loading">Loading…</div>
+                    </div>
+                </div>
+
+                <!-- Leakage Audit -->
+                <div class="robustness-block animate-on-scroll">
+                    <h3 class="subsection-title">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" opacity="0.6"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm3.5 9h-3v3h-1V9h-3V8h3V5h1v3h3v1z"/></svg>
+                        Leakage Audit
+                    </h3>
+                    <div id="leakageAudit">
+                        <div class="chart-loading">Loading…</div>
+                    </div>
+                </div>
+
+                <!-- Links -->
+                <div class="trust-links animate-on-scroll">
+                    <a href="/reports/robustness_results.json" target="_blank" class="trust-link">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4.5 1L1 7l3.5 6h1.414L2.414 7l3.5-6H4.5zm5 0l3.5 6-3.5 6H8.086L11.586 7l-3.5-6H9.5z"/></svg>
+                        View Raw JSON
+                    </a>
+                    <a href="https://github.com/Rampradeep31/AI-Risk-Manager-Razopay" target="_blank" class="trust-link">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                        View on GitHub
+                    </a>
+                    <a href="/docs" target="_blank" class="trust-link">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1 2.5A1.5 1.5 0 012.5 1h3A1.5 1.5 0 017 2.5v3A1.5 1.5 0 015.5 7h-3A1.5 1.5 0 011 5.5v-3zm8 0A1.5 1.5 0 0110.5 1h3A1.5 1.5 0 0115 2.5v3A1.5 1.5 0 0113.5 7h-3A1.5 1.5 0 019 5.5v-3z"/></svg>
+                        Swagger API Docs
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Built with scikit-learn · LightGBM · SHAP · FastAPI — <a href="https://github.com/Rampradeep31/AI-Risk-Manager-Razopay" target="_blank">View on GitHub</a></p>
+        </div>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
